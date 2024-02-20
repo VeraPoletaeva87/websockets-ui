@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { WebSocketServer } from "ws";
-import { UserItem, Winner, Ship } from "./types";
+import { UserItem, Winner, Ship, Player } from "./types";
 import { validatePassword } from "./userValidation";
+import { calcAttackStatus } from "./helpers";
 
 export const users: UserItem[] = [];
 export const winners: Winner[] = [];
@@ -9,6 +10,10 @@ export const roomUsers = [];
 export const ships: Ship[] = [];
 
 const wss = new WebSocketServer({ port: 3000 });
+
+let secondPlayer: Player = {
+  idPlayer: ""
+};
 
 wss.on('listening', function () {
     console.log('WebSocket server is listening on port', wss.options.port);
@@ -56,12 +61,10 @@ wss.on('connection', function connection(ws) {
         } else { // else add new user to array
           users.push({name:  userInfo.name, password: userInfo.password});
         }
-        console.log(users);
         console.log('received: ', command.type, 'name: ', userInfo.name, 'password: ', userInfo.password);
     }
     if (command.type === 'create_room') {
         console.log('create room');
-
         ws.send(JSON.stringify({
             type: "update_room",
             data: JSON.stringify([
@@ -83,12 +86,15 @@ wss.on('connection', function connection(ws) {
       const roomInfo = JSON.parse(command.data.toString());
       const roomId = roomInfo.indexRoom;
       console.log('add user to room');
+      //add user to roomUsers
+      secondPlayer.idPlayer = randomUUID();
+
       ws.send(JSON.stringify({
         type: "create_game",
         data: JSON.stringify(
           {
             idGame: roomId,
-            idPlayer: randomUUID(),
+            idPlayer: secondPlayer.idPlayer,
         }
         ),
         id: 0,
@@ -97,14 +103,38 @@ wss.on('connection', function connection(ws) {
 
     if (command.type === 'add_ships') {
       const shipsInfo = JSON.parse(command.data.toString());
-      const ships = shipsInfo.ships;
+      shipsInfo.ships.forEach((item: Ship)=> {
+        ships.push(item);
+      })
+     
       console.log('add ships');
       ws.send(JSON.stringify({
         type: "start_game",
         data: JSON.stringify(
           {
-            idGame: roomId,
-            idPlayer: randomUUID(),
+            ships: ships,
+            currentPlayerIndex: secondPlayer.idPlayer,
+        }
+        ),
+        id: 0,
+    }));
+    }
+
+    if (command.type === 'attack') {
+      console.log(ships);
+      const attackInfo = JSON.parse(command.data.toString());
+      console.log('attack on ', attackInfo.x, attackInfo.y);
+      ws.send(JSON.stringify({
+        type: "attack",
+        data: JSON.stringify(
+          {
+            position:
+            {
+                x: attackInfo.x,
+                y: attackInfo.y,
+            },
+            currentPlayer: secondPlayer.idPlayer, 
+            status: calcAttackStatus(attackInfo.x, attackInfo.y),
         }
         ),
         id: 0,

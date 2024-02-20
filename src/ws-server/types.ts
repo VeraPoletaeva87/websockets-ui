@@ -17,3 +17,14 @@ export interface Ship {
     length: number;
     type: string;
 }
+
+export interface Player {
+    idPlayer: string
+}
+
+export interface Attack {
+        gameId: number;
+        x: number;
+        y: number;
+        indexPlayer: number;
+}
