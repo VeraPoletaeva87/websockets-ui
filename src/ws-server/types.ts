@@ -1,6 +1,7 @@
 export interface UserItem {
     name: string;
     password: string;
+    id: string;
 }
 
 export interface Winner {
@@ -27,4 +28,14 @@ export interface Attack {
         x: number;
         y: number;
         indexPlayer: number;
+}
+
+export interface Room {
+    roomId: string;
+    roomUsers: RoomUser[];
+}
+
+export interface RoomUser {
+    name: string;
+    index: string;
 }

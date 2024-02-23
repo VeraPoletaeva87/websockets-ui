@@ -1,43 +1,43 @@
 import { randomUUID } from "crypto";
 import { WebSocketServer } from "ws";
-import { UserItem, Winner, Ship, Player } from "./types";
+import { UserItem, Winner, Ship, Room } from "./types";
 import { validatePassword } from "./userValidation";
 import { calcAttackStatus } from "./helpers";
 
 export const users: UserItem[] = [];
 export const winners: Winner[] = [];
-export const roomUsers = [];
+export const rooms: Room[] = [];
 export const ships: Ship[] = [];
+let currentPlayer = '';
 
 const wss = new WebSocketServer({ port: 3000 });
-
-let secondPlayer: Player = {
-  idPlayer: ""
-};
 
 wss.on('listening', function () {
     console.log('WebSocket server is listening on port', wss.options.port);
   });
 
 wss.on('connection', function connection(ws) {
+  const playerId = randomUUID();
   ws.on('message', (data) => {
     const command = JSON.parse(data.toString());
     if (command.type === 'reg') {
         const userInfo = JSON.parse(command.data.toString());
 
         //if user exists - check if password is valid
-        if (users.find((item) => item.name === userInfo.name)) {
+        const user = users.find((item) => item.name === userInfo.name);
+        if (user) {
           if (validatePassword(userInfo.name, userInfo.password)) {
             ws.send(JSON.stringify({
               type: "reg",
               data: JSON.stringify({
                   name: userInfo.name,
-                  index: 100,
+                  index: user.id,
                   error: false,
                   errorText: '',
               }),
               id: 0,
           }));
+        
           ws.send(JSON.stringify({
             type: "update_winners",
             data: JSON.stringify({
@@ -46,6 +46,12 @@ wss.on('connection', function connection(ws) {
             }),
             id: 0,
         }));
+        console.log('update room after reg')
+        ws.send(JSON.stringify({
+          type: "update_room",
+          data: JSON.stringify(rooms),
+          id: 0,
+      }));
           } else {
             ws.send(JSON.stringify({
               type: "reg",
@@ -59,25 +65,20 @@ wss.on('connection', function connection(ws) {
           }));
           }
         } else { // else add new user to array
-          users.push({name:  userInfo.name, password: userInfo.password});
+          users.push({name:  userInfo.name, password: userInfo.password, id: playerId});
         }
         console.log('received: ', command.type, 'name: ', userInfo.name, 'password: ', userInfo.password);
     }
     if (command.type === 'create_room') {
-        console.log('create room');
+        const id = randomUUID();
+        console.log('create room with player ', users[0].name);
+        rooms.push({roomId: id, roomUsers: [{
+          name: users[0].name,
+          index: users[0].id,
+      }]});
         ws.send(JSON.stringify({
             type: "update_room",
-            data: JSON.stringify([
-              {
-                roomId: randomUUID(),
-                roomUsers:
-                    [{
-                        name: users[0].name,
-                        index: 100,
-                    }
-                ],
-            }
-            ]),
+            data: JSON.stringify(rooms),
             id: 0,
         }));
     }
@@ -85,16 +86,28 @@ wss.on('connection', function connection(ws) {
     if (command.type === 'add_user_to_room') {
       const roomInfo = JSON.parse(command.data.toString());
       const roomId = roomInfo.indexRoom;
-      console.log('add user to room');
+      console.log('add user to room', currentPlayer);
+      const room = rooms.find((item) => item.roomId === roomId);
+      room?.roomUsers.push({ name: users[1].name,
+        index: users[1].id})
       //add user to roomUsers
-      secondPlayer.idPlayer = randomUUID();
+      ws.send(JSON.stringify({
+        type: "update_room",
+        data: JSON.stringify([
+          {
+            roomId: roomId,
+            roomUsers: room?.roomUsers
+        }
+        ]),
+        id: 0,
+    }));
 
       ws.send(JSON.stringify({
         type: "create_game",
         data: JSON.stringify(
           {
             idGame: roomId,
-            idPlayer: secondPlayer.idPlayer,
+            idPlayer: playerId,
         }
         ),
         id: 0,
@@ -113,17 +126,32 @@ wss.on('connection', function connection(ws) {
         data: JSON.stringify(
           {
             ships: ships,
-            currentPlayerIndex: secondPlayer.idPlayer,
+            currentPlayerIndex: shipsInfo.indexPlayer,
         }
         ),
         id: 0,
     }));
+    ws.send(JSON.stringify({
+      type: "turn",
+      data: JSON.stringify(
+          {
+              currentPlayer: shipsInfo.indexPlayer
+          }),
+      id: 0,
+    }));
     }
 
     if (command.type === 'attack') {
-      console.log(ships);
       const attackInfo = JSON.parse(command.data.toString());
-      console.log('attack on ', attackInfo.x, attackInfo.y);
+      // currentPlayer = attackInfo.indexPlayer;
+      // if (currentPlayer === users[0].id) {
+      //   currentPlayer = users[1].id;
+      // }
+      // if (currentPlayer === users[1].id) {
+      //   currentPlayer = users[0].id;
+      // }
+
+      console.log('attack on ', attackInfo.x, attackInfo.y, 'by ', attackInfo.indexPlayer);
       ws.send(JSON.stringify({
         type: "attack",
         data: JSON.stringify(
@@ -133,16 +161,24 @@ wss.on('connection', function connection(ws) {
                 x: attackInfo.x,
                 y: attackInfo.y,
             },
-            currentPlayer: secondPlayer.idPlayer, 
+            currentPlayer: attackInfo.indexPlayer, 
             status: calcAttackStatus(attackInfo.x, attackInfo.y),
         }
         ),
         id: 0,
     }));
+
+    console.log('current playerId is: ', attackInfo.indexPlayer);
+    ws.send(JSON.stringify({
+      type: "turn",
+      data: JSON.stringify(
+          {
+              currentPlayer: attackInfo.indexPlayer
+          }),
+      id: 0,
+    }));
     }
   });
-
- // ws.send('something');
 });
 
 process.on('SIGINT', function () {
