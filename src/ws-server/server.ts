@@ -8,7 +8,13 @@ export const users: UserItem[] = [];
 export const winners: Winner[] = [];
 export const rooms: Room[] = [];
 export const ships: Ship[] = [];
-let currentPlayer = '';
+
+let currentPlayer: string | undefined = '';
+let prevPlayer = '';
+
+// Store connected clients
+const clients: any = [];
+
 
 const wss = new WebSocketServer({ port: 3000 });
 
@@ -42,6 +48,8 @@ wss.on('listening', function () {
 
 wss.on('connection', function connection(ws) {
   const playerId = randomUUID();
+  clients.push({ws: ws, userId: playerId});
+
   ws.on('message', (data) => {
     const command = JSON.parse(data.toString());
     if (command.type === 'reg') {
@@ -90,7 +98,7 @@ wss.on('connection', function connection(ws) {
       console.log('add user to room', currentPlayer);
       const room = rooms.find((item) => item.roomId === roomId);
       room?.roomUsers.push({ name: users[1].name,
-        index: users[1].id})
+        index: users[1].id});
       //add user to roomUsers
       ws.send(JSON.stringify({
         type: "update_room",
@@ -136,7 +144,7 @@ wss.on('connection', function connection(ws) {
       type: "turn",
       data: JSON.stringify(
           {
-              currentPlayer: shipsInfo.indexPlayer
+              currentPlayer: users[0].id
           }),
       id: 0,
     }));
@@ -144,40 +152,56 @@ wss.on('connection', function connection(ws) {
 
     if (command.type === 'attack') {
       const attackInfo = JSON.parse(command.data.toString());
-      // currentPlayer = attackInfo.indexPlayer;
-      // if (currentPlayer === users[0].id) {
-      //   currentPlayer = users[1].id;
-      // }
-      // if (currentPlayer === users[1].id) {
-      //   currentPlayer = users[0].id;
-      // }
+
+      if (attackInfo.indexPlayer === playerId) {
+        currentPlayer = users.find((item) => item.id !== attackInfo.indexPlayer)?.id;
+      } else {
+        currentPlayer = attackInfo.indexPlayer;
+      }
 
       console.log('attack on ', attackInfo.x, attackInfo.y, 'by ', attackInfo.indexPlayer);
-      ws.send(JSON.stringify({
-        type: "attack",
-        data: JSON.stringify(
-          {
-            position:
-            {
-                x: attackInfo.x,
-                y: attackInfo.y,
-            },
-            currentPlayer: attackInfo.indexPlayer, 
-            status: calcAttackStatus(attackInfo.x, attackInfo.y),
-        }
-        ),
-        id: 0,
-    }));
 
-    console.log('current playerId is: ', attackInfo.indexPlayer);
-    ws.send(JSON.stringify({
-      type: "turn",
-      data: JSON.stringify(
-          {
-              currentPlayer: attackInfo.indexPlayer
-          }),
-      id: 0,
-    }));
+      if (attackInfo.indexPlayer === playerId) {
+        const status = calcAttackStatus(attackInfo.x, attackInfo.y);
+        ws.send(JSON.stringify({
+          type: "attack",
+          data: JSON.stringify(
+            {
+              position:
+              {
+                  x: attackInfo.x,
+                  y: attackInfo.y,
+              },
+              currentPlayer: attackInfo.indexPlayer, 
+              status: status,
+          }
+          ),
+          id: 0,
+      }));
+  
+      console.log('current playerId is: ', attackInfo.indexPlayer);
+      console.log(users);
+    
+      if (status === 'miss') {
+        ws.send(JSON.stringify({
+        type: "turn",
+        data: JSON.stringify(
+            {
+                currentPlayer: currentPlayer
+            }),
+        id: 0,
+      }));
+      const anotherClient = clients.find((item: any ) => item.userId === currentPlayer).ws;
+      anotherClient.send(JSON.stringify({
+        type: "turn",
+        data: JSON.stringify(
+            {
+                currentPlayer: currentPlayer
+            }),
+        id: 0,
+      }));
+      }
+      } 
     }
   });
 });
