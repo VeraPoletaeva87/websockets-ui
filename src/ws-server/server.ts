@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 import { UserItem, Winner, Ship, Room } from "./types";
 import { validatePassword } from "./userValidation";
 import { calcAttackStatus } from "./helpers";
@@ -11,6 +11,30 @@ export const ships: Ship[] = [];
 let currentPlayer = '';
 
 const wss = new WebSocketServer({ port: 3000 });
+
+const registerUser = (ws: WebSocket, user: UserItem, id: string) => {
+  ws.send(JSON.stringify({
+    type: "reg",
+    data: JSON.stringify({
+        name: user.name,
+        index: id,
+        error: false,
+        errorText: '',
+    }),
+    id: 0,
+  }));
+  ws.send(JSON.stringify({
+      type: "update_winners",
+      data: JSON.stringify([]),
+      id: 0,
+  }));
+  console.log('update room after reg')
+  ws.send(JSON.stringify({
+      type: "update_room",
+      data: JSON.stringify(rooms),
+      id: 0,
+  }));
+}
 
 wss.on('listening', function () {
     console.log('WebSocket server is listening on port', wss.options.port);
@@ -27,31 +51,7 @@ wss.on('connection', function connection(ws) {
         const user = users.find((item) => item.name === userInfo.name);
         if (user) {
           if (validatePassword(userInfo.name, userInfo.password)) {
-            ws.send(JSON.stringify({
-              type: "reg",
-              data: JSON.stringify({
-                  name: userInfo.name,
-                  index: user.id,
-                  error: false,
-                  errorText: '',
-              }),
-              id: 0,
-          }));
-        
-          ws.send(JSON.stringify({
-            type: "update_winners",
-            data: JSON.stringify({
-                name: userInfo.name,
-                wins: 0
-            }),
-            id: 0,
-        }));
-        console.log('update room after reg')
-        ws.send(JSON.stringify({
-          type: "update_room",
-          data: JSON.stringify(rooms),
-          id: 0,
-      }));
+            registerUser(ws, user, user.id);
           } else {
             ws.send(JSON.stringify({
               type: "reg",
@@ -66,6 +66,7 @@ wss.on('connection', function connection(ws) {
           }
         } else { // else add new user to array
           users.push({name:  userInfo.name, password: userInfo.password, id: playerId});
+          registerUser(ws, userInfo, playerId);
         }
         console.log('received: ', command.type, 'name: ', userInfo.name, 'password: ', userInfo.password);
     }
