@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { WebSocket, WebSocketServer } from "ws";
 import { UserItem, Winner, Ship, Room } from "./types";
 import { validatePassword } from "./userValidation";
-import { calcAttackStatus } from "./helpers";
+import { calcAttackStatus, fillGameBoard } from "./helpers";
 
 export const users: UserItem[] = [];
 export const winners: Winner[] = [];
@@ -128,7 +128,8 @@ wss.on('connection', function connection(ws) {
       shipsInfo.ships.forEach((item: Ship)=> {
         ships.push(item);
       })
-     
+      //define ships on board
+      fillGameBoard();
       console.log('add ships');
       ws.send(JSON.stringify({
         type: "start_game",
@@ -180,7 +181,6 @@ wss.on('connection', function connection(ws) {
       }));
   
       console.log('current playerId is: ', attackInfo.indexPlayer);
-      console.log(users);
     
       if (status === 'miss') {
         ws.send(JSON.stringify({
