@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { WebSocket, WebSocketServer } from "ws";
-import { UserItem, Winner, Ship, Room } from "./types";
+import { UserItem, Winner, Ship, Room, GameShip } from "./types";
 import { validatePassword } from "./userValidation";
 import { calcAttackStatus, fillGameBoard, getRandomCoordinates, isGameFinished } from "./helpers";
 import { getEnemyId } from "./userHelpers";
@@ -9,7 +9,9 @@ import { finishGame } from "./gameHelpers";
 export const users: UserItem[] = [];
 export const winners: Winner[] = [];
 export const rooms: Room[] = [];
-export const ships: Ship[] = [];
+//export const ships: Ship[] = [];
+
+export const gameShips: GameShip[] = []; 
 
 let currentPlayer: string | undefined = '';
 // Store connected clients
@@ -85,10 +87,7 @@ wss.on('connection', function connection(ws) {
     if (command.type === 'create_room') {
         const id = randomUUID();
         console.log('create room with player ', users[0].name);
-        rooms.push({roomId: id, roomUsers: [{
-          name: users[0].name,
-          index: users[0].id,
-      }]});
+        rooms.push({roomId: id, roomUsers: []}); // create empty room
         ws.send(JSON.stringify({
             type: "update_room",
             data: JSON.stringify(rooms),
@@ -99,10 +98,11 @@ wss.on('connection', function connection(ws) {
     if (command.type === 'add_user_to_room') {
       const roomInfo = JSON.parse(command.data.toString());
       const roomId = roomInfo.indexRoom;
-      console.log('add user to room', currentPlayer);
+      console.log('add user to room', playerId);
       const room = rooms.find((item) => item.roomId === roomId);
-      room?.roomUsers.push({ name: users[1].name,
-        index: users[1].id});
+      const user = users.find((item) => item.id === playerId);
+      room?.roomUsers.push({ name: user?.name || '',
+        index: user?.id || ''});
       //add user to roomUsers
       ws.send(JSON.stringify({
         type: "update_room",
@@ -114,7 +114,20 @@ wss.on('connection', function connection(ws) {
         ]),
         id: 0,
     }));
-
+    currentPlayer = playerId;
+    const anotherClient = clients.find((item: any ) => item.userId === currentPlayer).ws;
+    if (anotherClient) {
+      anotherClient.send(JSON.stringify({
+      type: "update_room",
+      data: JSON.stringify([
+        {
+          roomId: roomId,
+          roomUsers: room?.roomUsers
+      }
+      ]),
+      id: 0,
+  }));
+    }
       ws.send(JSON.stringify({
         type: "create_game",
         data: JSON.stringify(
@@ -129,22 +142,26 @@ wss.on('connection', function connection(ws) {
 
     if (command.type === 'add_ships') {
       const shipsInfo = JSON.parse(command.data.toString());
-      ships.length = 0;
+     
       if (shipsInfo.indexPlayer === playerId) {
+        const ships: Ship[] = [];
         shipsInfo.ships.forEach((item: Ship)=> {
           ships.push(item);
-        })
-      //define ships on board
-      fillGameBoard();
+        });
+      gameShips.push({playerId: playerId, userShips: ships})  
+      }
+      if (gameShips.length === 2 ) {
+        //define ships on board when both players sent ships
+        fillGameBoard(playerId);
       }
       currentPlayer = shipsInfo.indexPlayer;
       const anotherClient = clients.find((item: any ) => item.userId === currentPlayer).ws;
-      console.log('add ships', ships);
+      console.log('add ships', shipsInfo.ships);
       anotherClient.send(JSON.stringify({
         type: "start_game",
         data: JSON.stringify(
           {
-            ships: ships,
+            ships: shipsInfo.ships,
             currentPlayerIndex: shipsInfo.indexPlayer,
         }
         ),
@@ -169,7 +186,7 @@ wss.on('connection', function connection(ws) {
       const anotherClient = clients.find((item: any ) => item.userId === currentPlayer).ws;
 
       if (attackInfo.indexPlayer === playerId) {
-        const status = calcAttackStatus(attackInfo.x, attackInfo.y);
+        const status = calcAttackStatus(attackInfo.x, attackInfo.y, attackInfo.indexPlayer);
         anotherClient.send(JSON.stringify({
           type: "attack",
           data: JSON.stringify(
@@ -239,7 +256,7 @@ wss.on('connection', function connection(ws) {
 
       const {x,y} = getRandomCoordinates();
       if (attackInfo.indexPlayer === playerId) {
-        const status = calcAttackStatus(x, y);
+        const status = calcAttackStatus(x, y, playerId);
         ws.send(JSON.stringify({
           type: "attack",
           data: JSON.stringify(

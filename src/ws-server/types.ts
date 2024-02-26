@@ -19,6 +19,11 @@ export interface Ship {
     type: string;
 }
 
+export interface GameShip {
+    playerId: string;
+    userShips: Ship[]
+}
+
 export interface Player {
     idPlayer: string
 }
@@ -38,15 +43,4 @@ export interface Room {
 export interface RoomUser {
     name: string;
     index: string;
-}
-
-export interface ShipCoords {
-    start: { 
-        x: number;
-        y: number;
-    },
-    end: { 
-        x: number; 
-        y: number; 
-    }
 }
