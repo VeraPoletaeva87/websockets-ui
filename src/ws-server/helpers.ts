@@ -2,6 +2,10 @@ import { ships } from "./server";
 import { ShipCoords } from "./types";
 
 const SIZE = 10;
+const MAX_SHOTS = 20; // total number of cells with ships
+
+// number of shots made
+let shots = 0;
 
 const board = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => 0));
 
@@ -80,6 +84,7 @@ export const calcAttackStatus = (x: number, y: number) => {
         for (let j=0; j < SIZE; j++) {
             if (i === x && j === y && board[x][y] !== 0) {
                 board[x][y] = 2;
+                shots++;
                 res = 'shot';
                 // if (ifShipSunk()) {
                 //     res = 'killed'
@@ -122,13 +127,5 @@ export const getRandomCoordinates = () => {
 
 // if all ships are shot - no cells with 1
 export const isGameFinished = () => {
-    let res = true;
-    for (let i=0; i < SIZE; i++) {
-        for (let j=0; j < SIZE; j++) {
-            if (board[i][j] === 1) {
-                res = false;
-            }
-        }
-    }
-    return res;
+    return shots === MAX_SHOTS;
 }

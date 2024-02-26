@@ -4,6 +4,7 @@ import { UserItem, Winner, Ship, Room } from "./types";
 import { validatePassword } from "./userValidation";
 import { calcAttackStatus, fillGameBoard, getRandomCoordinates, isGameFinished } from "./helpers";
 import { getEnemyId } from "./userHelpers";
+import { finishGame } from "./gameHelpers";
 
 export const users: UserItem[] = [];
 export const winners: Winner[] = [];
@@ -12,7 +13,7 @@ export const ships: Ship[] = [];
 
 let currentPlayer: string | undefined = '';
 // Store connected clients
-const clients: any = [];
+export const clients: any = [];
 
 const wss = new WebSocketServer({ port: 3000 });
 
@@ -39,6 +40,7 @@ const registerUser = (ws: WebSocket, user: UserItem, id: string) => {
       id: 0,
   }));
 }
+
 
 wss.on('listening', function () {
     console.log('WebSocket server is listening on port', wss.options.port);
@@ -203,25 +205,7 @@ wss.on('connection', function connection(ws) {
 
       // check if all ships are shot, if so - finish game update winners
       if (isGameFinished()) {
-        ws.send(JSON.stringify({
-          type: "update_winners",
-          data: JSON.stringify(
-            [
-              {
-                  name: users[0].name,
-                  wins: 1,
-              }
-          ],),
-          id: 0,
-        }));
-        ws.send(JSON.stringify({
-          type: "finish",
-          data: JSON.stringify(
-              {
-                winPlayer: currentPlayer
-              }),
-          id: 0,
-        }));
+        finishGame(ws, currentPlayer);
       }
     }
 
