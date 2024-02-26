@@ -76,8 +76,8 @@ const ifShipSunk = () => {
 export const calcAttackStatus = (x: number, y: number) => {
     let res = 'miss';
 
-    for (let i=0; i < 10; i++) {
-        for (let j=0; j < 10; j++) {
+    for (let i=0; i < SIZE; i++) {
+        for (let j=0; j < SIZE; j++) {
             if (i === x && j === y && board[x][y] !== 0) {
                 board[x][y] = 2;
                 res = 'shot';
@@ -97,7 +97,6 @@ export const calcAttackStatus = (x: number, y: number) => {
 // fill all the board cells with 1 if there is a ship
 export const fillGameBoard = () => {
     calcShipsCoords();
-    //console.log(shipsCoord);
     ships.forEach(ship => {
         const { position, direction, length } = ship;
         const { x, y } = position;
@@ -106,13 +105,30 @@ export const fillGameBoard = () => {
             for (let i = y; i < y + length; i++) {
                 board[x][i] = 1;
             }
-
         } else { // horizontal
             for (let i = x; i < x + length; i++) {
                 board[i][y] = 1;
             }
         }
     });
+}
 
-   // console.log(board);
+export const getRandomCoordinates = () => {
+    let x,y;
+    x = Math.floor(Math.random() * 10);
+    y = Math.floor(Math.random() * 10);
+    return {x: x, y: y};
+}
+
+// if all ships are shot - no cells with 1
+export const isGameFinished = () => {
+    let res = true;
+    for (let i=0; i < SIZE; i++) {
+        for (let j=0; j < SIZE; j++) {
+            if (board[i][j] === 1) {
+                res = false;
+            }
+        }
+    }
+    return res;
 }

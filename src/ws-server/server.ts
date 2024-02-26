@@ -2,7 +2,8 @@ import { randomUUID } from "crypto";
 import { WebSocket, WebSocketServer } from "ws";
 import { UserItem, Winner, Ship, Room } from "./types";
 import { validatePassword } from "./userValidation";
-import { calcAttackStatus, fillGameBoard } from "./helpers";
+import { calcAttackStatus, fillGameBoard, getRandomCoordinates, isGameFinished } from "./helpers";
+import { getEnemyId } from "./userHelpers";
 
 export const users: UserItem[] = [];
 export const winners: Winner[] = [];
@@ -10,11 +11,8 @@ export const rooms: Room[] = [];
 export const ships: Ship[] = [];
 
 let currentPlayer: string | undefined = '';
-let prevPlayer = '';
-
 // Store connected clients
 const clients: any = [];
-
 
 const wss = new WebSocketServer({ port: 3000 });
 
@@ -34,7 +32,7 @@ const registerUser = (ws: WebSocket, user: UserItem, id: string) => {
       data: JSON.stringify([]),
       id: 0,
   }));
-  console.log('update room after reg')
+  console.log('update room after reg', rooms)
   ws.send(JSON.stringify({
       type: "update_room",
       data: JSON.stringify(rooms),
@@ -45,6 +43,10 @@ const registerUser = (ws: WebSocket, user: UserItem, id: string) => {
 wss.on('listening', function () {
     console.log('WebSocket server is listening on port', wss.options.port);
   });
+
+wss.on('closed',  function () {
+    console.log("WebSocket connection closed");
+});  
 
 wss.on('connection', function connection(ws) {
   const playerId = randomUUID();
@@ -130,7 +132,7 @@ wss.on('connection', function connection(ws) {
       })
       //define ships on board
       fillGameBoard();
-      console.log('add ships');
+      console.log('add ships', ships);
       ws.send(JSON.stringify({
         type: "start_game",
         data: JSON.stringify(
@@ -154,11 +156,7 @@ wss.on('connection', function connection(ws) {
     if (command.type === 'attack') {
       const attackInfo = JSON.parse(command.data.toString());
 
-      if (attackInfo.indexPlayer === playerId) {
-        currentPlayer = users.find((item) => item.id !== attackInfo.indexPlayer)?.id;
-      } else {
-        currentPlayer = attackInfo.indexPlayer;
-      }
+      currentPlayer = getEnemyId(attackInfo.indexPlayer, playerId);
 
       console.log('attack on ', attackInfo.x, attackInfo.y, 'by ', attackInfo.indexPlayer);
 
@@ -172,6 +170,79 @@ wss.on('connection', function connection(ws) {
               {
                   x: attackInfo.x,
                   y: attackInfo.y,
+              },
+              currentPlayer: attackInfo.indexPlayer, 
+              status: status,
+          }
+          ),
+          id: 0,
+      }));
+  
+      console.log('current playerId is: ', attackInfo.indexPlayer);
+    
+      if (status === 'miss') {
+        ws.send(JSON.stringify({
+        type: "turn",
+        data: JSON.stringify(
+            {
+                currentPlayer: currentPlayer
+            }),
+        id: 0,
+      }));
+      const anotherClient = clients.find((item: any ) => item.userId === currentPlayer).ws;
+      anotherClient.send(JSON.stringify({
+        type: "turn",
+        data: JSON.stringify(
+            {
+                currentPlayer: currentPlayer
+            }),
+        id: 0,
+      }));
+      }
+      } 
+
+      // check if all ships are shot, if so - finish game update winners
+      if (isGameFinished()) {
+        ws.send(JSON.stringify({
+          type: "update_winners",
+          data: JSON.stringify(
+            [
+              {
+                  name: users[0].name,
+                  wins: 1,
+              }
+          ],),
+          id: 0,
+        }));
+        ws.send(JSON.stringify({
+          type: "finish",
+          data: JSON.stringify(
+              {
+                winPlayer: currentPlayer
+              }),
+          id: 0,
+        }));
+      }
+    }
+
+    if (command.type === 'randomAttack') {
+      const attackInfo = JSON.parse(command.data.toString());
+
+      currentPlayer = getEnemyId(attackInfo.indexPlayer, playerId);
+
+      console.log('random attack by ', attackInfo.indexPlayer);
+
+      const {x,y} = getRandomCoordinates();
+      if (attackInfo.indexPlayer === playerId) {
+        const status = calcAttackStatus(x, y);
+        ws.send(JSON.stringify({
+          type: "attack",
+          data: JSON.stringify(
+            {
+              position:
+              {
+                  x: x,
+                  y: y,
               },
               currentPlayer: attackInfo.indexPlayer, 
               status: status,
