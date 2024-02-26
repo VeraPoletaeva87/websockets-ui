@@ -16,7 +16,7 @@
 
 **---------------------------------------------------------------------**
 
-`npm run start:dev`
+`npm run start:dev`    - RUN IN ANOTHER TERMINAL TO START СLIENT
 
 * App served @ `http://localhost:8181` with nodemon
 

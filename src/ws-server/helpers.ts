@@ -86,7 +86,6 @@ export const getRandomCoordinates = () => {
 export const isGameFinished = () => {
     let res = false;
     boards.forEach((item: any) => {
-        console.log(item.shots);
         if (item.shots === MAX_SHOTS) {
             res = true;
             loser = item.id;
