@@ -129,13 +129,18 @@ wss.on('connection', function connection(ws) {
 
     if (command.type === 'add_ships') {
       const shipsInfo = JSON.parse(command.data.toString());
-      shipsInfo.ships.forEach((item: Ship)=> {
-        ships.push(item);
-      })
+      ships.length = 0;
+      if (shipsInfo.indexPlayer === playerId) {
+        shipsInfo.ships.forEach((item: Ship)=> {
+          ships.push(item);
+        })
       //define ships on board
       fillGameBoard();
+      }
+      currentPlayer = shipsInfo.indexPlayer;
+      const anotherClient = clients.find((item: any ) => item.userId === currentPlayer).ws;
       console.log('add ships', ships);
-      ws.send(JSON.stringify({
+      anotherClient.send(JSON.stringify({
         type: "start_game",
         data: JSON.stringify(
           {
@@ -161,10 +166,11 @@ wss.on('connection', function connection(ws) {
       currentPlayer = getEnemyId(attackInfo.indexPlayer, playerId);
 
       console.log('attack on ', attackInfo.x, attackInfo.y, 'by ', attackInfo.indexPlayer);
+      const anotherClient = clients.find((item: any ) => item.userId === currentPlayer).ws;
 
       if (attackInfo.indexPlayer === playerId) {
         const status = calcAttackStatus(attackInfo.x, attackInfo.y);
-        ws.send(JSON.stringify({
+        anotherClient.send(JSON.stringify({
           type: "attack",
           data: JSON.stringify(
             {
@@ -179,6 +185,21 @@ wss.on('connection', function connection(ws) {
           ),
           id: 0,
       }));
+      ws.send(JSON.stringify({
+        type: "attack",
+        data: JSON.stringify(
+          {
+            position:
+            {
+                x: attackInfo.x,
+                y: attackInfo.y,
+            },
+            currentPlayer: attackInfo.indexPlayer, 
+            status: status,
+        }
+        ),
+        id: 0,
+    }));
   
       console.log('current playerId is: ', attackInfo.indexPlayer);
     
@@ -191,7 +212,7 @@ wss.on('connection', function connection(ws) {
             }),
         id: 0,
       }));
-      const anotherClient = clients.find((item: any ) => item.userId === currentPlayer).ws;
+      
       anotherClient.send(JSON.stringify({
         type: "turn",
         data: JSON.stringify(

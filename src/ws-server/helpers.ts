@@ -1,38 +1,16 @@
 import { ships } from "./server";
-import { ShipCoords } from "./types";
+import { Ship, ShipCoords } from "./types";
 
 const SIZE = 10;
-const MAX_SHOTS = 20; // total number of cells with ships
+const MAX_SHOTS = 20; // total number of cells with ships of both players
 
 // number of shots made
 let shots = 0;
 
-const board = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => 0));
+let board = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => 0));
 
 // array of ships with start and end points
 const shipsCoord: ShipCoords[] = [];
-
-const calcShipsCoords = () => {
-    ships.forEach(ship => {
-        const { position, direction, length } = ship;
-        const { x, y } = position;
-        let startX, startY, endX, endY;
-
-        if (direction) {
-            startX = x;
-            startY = y;
-            endX = x + length - 1;
-            endY = y;
-        } else {
-            startX = x;
-            startY = y;
-            endX = x;
-            endY = y + length - 1;
-        }
-
-        shipsCoord.push({ start: { x: startX, y: startY }, end: { x: endX, y: endY } });
-    });
-}
 
 // check if current attack killed one of the ships
 const ifShipSunk = () => {
@@ -79,7 +57,7 @@ const ifShipSunk = () => {
 
 export const calcAttackStatus = (x: number, y: number) => {
     let res = 'miss';
-
+    console.log(board);
     for (let i=0; i < SIZE; i++) {
         for (let j=0; j < SIZE; j++) {
             if (i === x && j === y && board[x][y] !== 0) {
@@ -101,7 +79,7 @@ export const calcAttackStatus = (x: number, y: number) => {
 
 // fill all the board cells with 1 if there is a ship
 export const fillGameBoard = () => {
-    calcShipsCoords();
+    board = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => 0));
     ships.forEach(ship => {
         const { position, direction, length } = ship;
         const { x, y } = position;
