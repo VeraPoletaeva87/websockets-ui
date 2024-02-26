@@ -9,7 +9,21 @@
 ## Usage
 **Development**
 
-`npm run start:dev`
+**!!! IMPORTANT !!!**
+-------------------------------------------------------------------------
+
+`npm run start:server:dev` - RUN IN ANOTHER TERMINAL TO START SERVER
+
+**---------------------------------------------------------------------**
+
+`npm run start:dev`    - RUN IN ANOTHER TERMINAL TO START СLIENT
+
+**---------------------------------------------------------------------**
+
+
+
+
+
 
 * App served @ `http://localhost:8181` with nodemon
 
