@@ -1,13 +1,14 @@
 import { clients, users } from "./server";
 import { WebSocket } from "ws";
 
-export const finishGame = (ws: WebSocket, current: string | undefined) => {
+export const finishGame = (ws: WebSocket, current: string | undefined, loser: string) => {
+    const user = users.find((item) => item.id !== loser);
     ws.send(JSON.stringify({
       type: "update_winners",
       data: JSON.stringify(
         [
           {
-              name: users[0].name,
+              name: user?.name,
               wins: 1,
           }
       ],),
@@ -17,7 +18,7 @@ export const finishGame = (ws: WebSocket, current: string | undefined) => {
       type: "finish",
       data: JSON.stringify(
           {
-            winPlayer: current
+            winPlayer: user?.id
           }),
       id: 0,
     }));
@@ -26,7 +27,7 @@ export const finishGame = (ws: WebSocket, current: string | undefined) => {
       type: "finish",
       data: JSON.stringify(
           {
-            winPlayer: current
+            winPlayer: user?.id
           }),
       id: 0,
     }));

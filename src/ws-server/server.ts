@@ -242,8 +242,9 @@ wss.on('connection', function connection(ws) {
       } 
 
       // check if all ships are shot, if so - finish game update winners
-      if (isGameFinished()) {
-        finishGame(ws, currentPlayer);
+      let res = isGameFinished();
+      if (res.finished) {
+        finishGame(ws, currentPlayer, res.loser);
       }
     }
 

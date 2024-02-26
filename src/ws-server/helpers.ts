@@ -4,6 +4,8 @@ import { GameShip, Ship } from "./types";
 const SIZE = 10;
 const MAX_SHOTS = 20; // total number of cells with ships of both players
 
+let loser = '';
+
 let myBoard = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => 0));
 let enemyBoard = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => 0));
 let boards: any = [];
@@ -87,7 +89,8 @@ export const isGameFinished = () => {
         console.log(item.shots);
         if (item.shots === MAX_SHOTS) {
             res = true;
+            loser = item.id;
         }
     })
-    return res;
+    return {finished: res, loser: loser};
 }
